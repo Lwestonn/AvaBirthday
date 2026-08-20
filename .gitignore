@@ -1,0 +1,69 @@
+# ---------------------------------------------------------------
+# Unity .gitignore
+# Save this file as ".gitignore" (with the leading dot, no .txt)
+# in the ROOT of your project, next to the Assets folder.
+# ---------------------------------------------------------------
+
+# Unity generated folders
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+
+# Asset Store tools
+[Aa]ssets/AssetStoreTools*
+
+# Auto-generated solution and project files
+ExportedObj/
+.consulo/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Visual Studio / Rider / VS Code / Cursor
+.vs/
+.vscode/
+.idea/
+*.DotSettings.user
+
+# Unity3D generated meta files for folders we ignore
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+
+# Unity crash reports
+sysinfo.txt
+crashlytics-build.properties
+
+# Builds
+*.apk
+*.aab
+*.unitypackage
+*.app
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------------------------------------------------------------
+# NOTE: do NOT ignore .meta files inside Assets/.
+# Unity uses them to track asset references. Losing them breaks
+# every link in your scenes. They must be committed.
+# ---------------------------------------------------------------
