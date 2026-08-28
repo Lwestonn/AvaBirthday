@@ -10,12 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bca9de2a01fc03d43b8cb81b5ccbc4d8, type: 3}
-  m_Name: Memory_01_Test
+  m_Name: Memory_10
   m_EditorClassIdentifier: Assembly-CSharp::MemoryData
-  title: Basic Test
-  note: 'Just a Test of a memory
-
-'
+  title: Memory 10
+  note: Replace this with the real one.
   photo: {fileID: 0}
   voiceClip: {fileID: 0}
-  glowColor: {r: 1, g: 0.34, b: 0.36, a: 1}
+  glowColor: {r: 1, g: 0.6, b: 0.64799994, a: 1}

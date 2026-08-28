@@ -13,6 +13,13 @@ public class MemoryPickup : MonoBehaviour
     [Header("Content")]
     public MemoryData memory;
 
+    [Header("Head gate (optional)")]
+    [Tooltip("Leave OFF for normal orbs. Tick it for the one or two you want locked behind carrying his head.")]
+    public bool requiresHead = false;
+
+    [Tooltip("Fired when she touches a head-gated orb without the head. Wire a hint here if you want one.")]
+    public UnityEngine.Events.UnityEvent onNeedsHead;
+
     [Header("Visuals")]
     [Tooltip("The child object that spins and bobs. Leave empty to use the first child.")]
     public Transform visual;
@@ -71,6 +78,19 @@ public class MemoryPickup : MonoBehaviour
         {
             Debug.LogWarning($"[MemoryPickup] '{name}' has no MemoryData assigned.", this);
             return;
+        }
+
+        if (requiresHead)
+        {
+            var carrier = other.GetComponentInParent<HeadCarrier>();
+            if (carrier == null || !carrier.IsHolding)
+            {
+                // Not collected. She can come back with the head.
+                onNeedsHead?.Invoke();
+                var h = FindFirstObjectByType<HeadBarks>();
+                if (h != null) h.Say("You're going to want me for this one.");
+                return;
+            }
         }
 
         var manager = MemoryManager.Instance;

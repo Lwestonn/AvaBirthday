@@ -4,15 +4,21 @@ using UnityEngine;
 using UnityEngine.Events;
 
 /// <summary>
-/// The brain. Put this on one empty GameObject in the scene called "GameManager".
-/// Tracks what has been collected, drives the UI, and fires the finale.
+/// The brain. One per scene, on a GameObject called "GameManager".
+///
+/// Memories no longer freeze the player. Collecting one hands the memory to the
+/// MemoryNarrator, which shows the photo card and has the head tell the story
+/// while she keeps walking around.
 /// </summary>
 public class MemoryManager : MonoBehaviour
 {
     public static MemoryManager Instance { get; private set; }
 
     [Header("Wiring")]
-    public MemoryPanelUI panel;
+    [Tooltip("Leave empty to find it automatically.")]
+    public MemoryNarrator narrator;
+
+    [Tooltip("Only used by the menus now. Memories do not lock the player.")]
     public PlayerControlLock playerLock;
 
     [Header("Progress")]
@@ -20,18 +26,18 @@ public class MemoryManager : MonoBehaviour
     public int totalMemories = 0;
 
     [Header("Events")]
-    [Tooltip("Fires every time a memory is collected. Hook your HUD counter here (Dynamic int, int).")]
+    [Tooltip("Fires on every collect. Hook the HUD counter and the body's marks here (Dynamic int, int).")]
     public UnityEvent<int, int> onProgressChanged;
 
-    [Tooltip("Fires once, after the LAST memory panel is closed. Hook FinaleSequence.Play here.")]
+    [Tooltip("Fires once when the last memory is collected. Hook BodyReattach.Unlock here.")]
     public UnityEvent onAllCollected;
 
     private readonly List<MemoryData> _collected = new();
-    private readonly Queue<MemoryData> _pending = new();
     private bool _finaleFired;
 
     public int CollectedCount => _collected.Count;
     public IReadOnlyList<MemoryData> Collected => _collected;
+    public bool AllCollected => _collected.Count >= totalMemories;
 
     private void Awake()
     {
@@ -50,11 +56,13 @@ public class MemoryManager : MonoBehaviour
 
     private void Start()
     {
+        if (narrator == null) narrator = FindFirstObjectByType<MemoryNarrator>();
+
         if (totalMemories <= 0)
         {
             // Count DISTINCT MemoryData, not pickups. If you duplicate a pickup and
-            // forget to swap its memory asset, counting pickups makes the finale
-            // unreachable with no error message.
+            // forget to swap its asset, counting pickups makes the ending unreachable
+            // with no error message.
             var pickups = FindObjectsByType<MemoryPickup>(FindObjectsSortMode.None);
             totalMemories = pickups.Select(p => p.memory)
                                    .Where(m => m != null)
@@ -66,7 +74,7 @@ public class MemoryManager : MonoBehaviour
                 Debug.LogWarning($"[MemoryManager] {missing} pickup(s) have no MemoryData assigned.");
 
             if (pickups.Length != totalMemories)
-                Debug.LogWarning($"[MemoryManager] {pickups.Length} pickups but only {totalMemories} distinct memories. Some pickups share the same asset.");
+                Debug.LogWarning($"[MemoryManager] {pickups.Length} pickups but only {totalMemories} distinct memories. Some share the same asset.");
         }
 
         onProgressChanged?.Invoke(0, totalMemories);
@@ -85,36 +93,12 @@ public class MemoryManager : MonoBehaviour
         _collected.Add(memory);
         onProgressChanged?.Invoke(_collected.Count, totalMemories);
 
-        if (playerLock != null) playerLock.SetLocked(true);
+        // The narrator queues internally, so running into two orbs at once is fine.
+        if (narrator != null) narrator.Narrate(memory);
 
-        if (panel == null)
-        {
-            OnPanelClosed();   // no UI wired yet, do not soft-lock the game
-            return;
-        }
-
-        // Overlapping triggers can fire two pickups in one frame. Queue the second
-        // instead of stomping the first panel mid-fade.
-        if (panel.IsOpen) _pending.Enqueue(memory);
-        else panel.Show(memory, OnPanelClosed);
-    }
-
-    private void OnPanelClosed()
-    {
-        if (_pending.Count > 0 && panel != null)
-        {
-            panel.Show(_pending.Dequeue(), OnPanelClosed);
-            return;   // stay locked, another memory is coming
-        }
-
-        bool done = _collected.Count >= totalMemories;
-
-        // Only give control back if we are NOT about to run the finale,
-        // otherwise she can walk around during the ending.
-        if (playerLock != null && !done)
-            playerLock.SetLocked(false);
-
-        if (done && !_finaleFired)
+        // Unlock the body immediately on the last one. She does not have to wait
+        // for the head to finish talking before she can go put it back on.
+        if (AllCollected && !_finaleFired)
         {
             _finaleFired = true;
             onAllCollected?.Invoke();
