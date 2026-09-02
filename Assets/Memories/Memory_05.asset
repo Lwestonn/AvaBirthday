@@ -12,8 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bca9de2a01fc03d43b8cb81b5ccbc4d8, type: 3}
   m_Name: Memory_05
   m_EditorClassIdentifier: Assembly-CSharp::MemoryData
-  title: Memory 5
-  note: Replace this with the real one.
-  photo: {fileID: 0}
+  title: Ice Cream
+  note: I loved this ice cream we got in Philly! So much so we went back and got
+    it again!
+  photo: {fileID: 21300000, guid: 414910ed64c83d84c8a52e47324093dc, type: 3}
   voiceClip: {fileID: 0}
   glowColor: {r: 0.6, g: 1, b: 0.95199996, a: 1}

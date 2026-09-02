@@ -21,6 +21,11 @@ using UnityEngine.InputSystem;
 /// IMPORTANT: add this component to PlayerControlLock's "Components To Disable"
 /// list, so she cannot throw the head while a memory is open.
 /// </summary>
+// Runs AFTER ThirdPersonController (order 0) and before the Cinemachine brain.
+// Without a fixed order, this script and the controller both write the player's
+// rotation in LateUpdate in an undefined order, and the frame-to-frame flip-flop
+// is what shows up as camera shake.
+[DefaultExecutionOrder(100)]
 public class HeadCarrier : MonoBehaviour
 {
     [Header("Carry point")]
@@ -44,8 +49,8 @@ public class HeadCarrier : MonoBehaviour
     [Tooltip("While charging, turn the character to face where the camera is looking.")]
     public bool faceAimWhileCharging = true;
 
-    [Tooltip("Degrees per second she turns to line up the throw.")]
-    public float aimTurnSpeed = 540f;
+    [Tooltip("Seconds to settle onto the aim direction. Lower is snappier, higher is smoother.")]
+    public float aimTurnSmoothing = 0.12f;
 
     [Tooltip("Camera used to decide the aim direction. Leave empty to use Camera.main.")]
     public Transform aimSource;
@@ -53,6 +58,8 @@ public class HeadCarrier : MonoBehaviour
     private HeadPickup _held;
     private HeadPickup _nearby;
     private float _chargeStart = -1f;
+    private float _yawVelocity;
+    private Collider _ownCollider;
 
     /// <summary>0 to 1 while winding up. Negative when not charging. Read by ChargeBarUI.</summary>
     public float ChargeNormalized =>
@@ -65,6 +72,8 @@ public class HeadCarrier : MonoBehaviour
 
     private void Awake()
     {
+        _ownCollider = GetComponent<Collider>();
+
         if (aimSource == null && Camera.main != null)
             aimSource = Camera.main.transform;
 
@@ -114,14 +123,20 @@ public class HeadCarrier : MonoBehaviour
         fwd.y = 0f;
         if (fwd.sqrMagnitude < 0.0001f) return;
 
-        Quaternion target = Quaternion.LookRotation(fwd.normalized);
-        transform.rotation = Quaternion.RotateTowards(transform.rotation, target, aimTurnSpeed * Time.deltaTime);
+        // SmoothDampAngle rather than RotateTowards. RotateTowards moves a fixed
+        // amount per frame and keeps arriving at, then being pushed off, the target,
+        // which reads as a vibration. Damping eases in and settles.
+        float targetYaw = Mathf.Atan2(fwd.x, fwd.z) * Mathf.Rad2Deg;
+        float yaw = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetYaw,
+                                          ref _yawVelocity, aimTurnSmoothing);
+        transform.rotation = Quaternion.Euler(0f, yaw, 0f);
     }
 
     private void OnDisable()
     {
         // If the player gets locked mid-charge, cancel rather than firing on unlock.
         _chargeStart = -1f;
+        _yawVelocity = 0f;
     }
 
     private void RefreshNearby()
@@ -146,7 +161,7 @@ public class HeadCarrier : MonoBehaviour
     {
         if (_held != null)
         {
-            _held.Drop();
+            _held.Drop(_ownCollider);
             _held = null;
             _chargeStart = -1f;
             return;
@@ -173,9 +188,13 @@ public class HeadCarrier : MonoBehaviour
         dir.y = 0f;
         dir = (dir.normalized + Vector3.up * throwArc).normalized;
 
-        _held.Throw(dir * force);
+        // Hand over our own collider so the head can ignore it briefly. Without
+        // that, the head can clip the player capsule on release and the resulting
+        // shove is felt as a camera jolt.
+        _held.Throw(dir * force, _ownCollider);
         _held = null;
         _chargeStart = -1f;
+        _yawVelocity = 0f;
     }
 
     private void OnDrawGizmosSelected()

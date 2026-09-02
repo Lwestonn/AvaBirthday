@@ -12,8 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bca9de2a01fc03d43b8cb81b5ccbc4d8, type: 3}
   m_Name: Memory_08
   m_EditorClassIdentifier: Assembly-CSharp::MemoryData
-  title: Memory 8
-  note: Replace this with the real one.
-  photo: {fileID: 0}
+  title: Park
+  note: 'Walking around the park with you! It was not even as half as pretty as you
+    are though! haha! '
+  photo: {fileID: 21300000, guid: c14d81bbba5614149a54e04070a00e3f, type: 3}
   voiceClip: {fileID: 0}
   glowColor: {r: 0.8719999, g: 0.6, b: 1, a: 1}

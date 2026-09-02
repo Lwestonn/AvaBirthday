@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bca9de2a01fc03d43b8cb81b5ccbc4d8, type: 3}
   m_Name: Memory_10
   m_EditorClassIdentifier: Assembly-CSharp::MemoryData
-  title: Memory 10
-  note: Replace this with the real one.
-  photo: {fileID: 0}
+  title: Selfie at the Beach
+  note: First time we went to Promenade! You looked stunning like always
+  photo: {fileID: 21300000, guid: ff19df9fc69fc994f921283623a7f935, type: 3}
   voiceClip: {fileID: 0}
   glowColor: {r: 1, g: 0.6, b: 0.64799994, a: 1}

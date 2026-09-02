@@ -12,8 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bca9de2a01fc03d43b8cb81b5ccbc4d8, type: 3}
   m_Name: Memory_02
   m_EditorClassIdentifier: Assembly-CSharp::MemoryData
-  title: Memory 2
-  note: Replace this with the real one.
-  photo: {fileID: 0}
+  title: Picnic
+  note: That was such a beautiful evening spent on the beach having a picnic. Any
+    time I get to spend an evening like this with you it is always such a great time!
+    :)
+  photo: {fileID: 21300000, guid: 130ab775d53ab3146b0c8319429a6794, type: 3}
   voiceClip: {fileID: 0}
   glowColor: {r: 0.96800005, g: 1, b: 0.6, a: 1}

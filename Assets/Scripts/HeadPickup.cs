@@ -28,8 +28,11 @@ public class HeadPickup : MonoBehaviour
     [Tooltip("Turn the collider off while carried so the head cannot shove the player around. Leave this on.")]
     public bool disableColliderWhileHeld = true;
 
-    [Tooltip("Grace period after release before the collider comes back, so it does not instantly bonk her in the face.")]
-    public float releaseColliderDelay = 0.12f;
+    [Tooltip("Grace period after release before the collider comes back.")]
+    public float releaseColliderDelay = 0.05f;
+
+    [Tooltip("How long the head ignores the thrower's own collider after release.")]
+    public float ignoreThrowerTime = 0.5f;
 
     [Header("Safety net")]
     [Tooltip("If the head falls below this Y, it comes back. Set well under your ground level.")]
@@ -131,7 +134,7 @@ public class HeadPickup : MonoBehaviour
         onPickedUp?.Invoke();
     }
 
-    public void Drop()
+    public void Drop(Collider thrower = null)
     {
         if (_state != State.Held) return;
 
@@ -141,10 +144,11 @@ public class HeadPickup : MonoBehaviour
         _airborneTime = 0f;
 
         RestoreCollider();
+        IgnoreThrower(thrower);
         onDropped?.Invoke();
     }
 
-    public void Throw(Vector3 impulse)
+    public void Throw(Vector3 impulse, Collider thrower = null)
     {
         if (_state != State.Held) return;
 
@@ -157,6 +161,7 @@ public class HeadPickup : MonoBehaviour
         _rb.AddTorque(Random.insideUnitSphere * throwSpin, ForceMode.Impulse);
 
         RestoreCollider();
+        IgnoreThrower(thrower);
         Play(throwSound);
         onThrown?.Invoke();
     }
@@ -186,6 +191,31 @@ public class HeadPickup : MonoBehaviour
 
         _state = State.Resting;
         RestoreCollider();
+    }
+
+    /// <summary>
+    /// Physics-level exclusion between the head and whoever threw it, for a
+    /// moment after release. More reliable than hoping the head clears her
+    /// capsule before its collider switches back on.
+    /// </summary>
+    private void IgnoreThrower(Collider thrower)
+    {
+        if (thrower == null || _col == null) return;
+        StartCoroutine(IgnoreRoutine(thrower));
+    }
+
+    private IEnumerator IgnoreRoutine(Collider thrower)
+    {
+        // Wait for the collider to come back before pairing them, or Unity
+        // silently forgets the ignore on a disabled collider.
+        yield return new WaitForSeconds(releaseColliderDelay + 0.02f);
+        if (_col == null || thrower == null) yield break;
+
+        Physics.IgnoreCollision(_col, thrower, true);
+        yield return new WaitForSeconds(ignoreThrowerTime);
+
+        if (_col != null && thrower != null)
+            Physics.IgnoreCollision(_col, thrower, false);
     }
 
     private void RestoreCollider()

@@ -117,6 +117,14 @@ public class BodyReattach : MonoBehaviour
         _done = true;
         SetPrompt("");
 
+        // Silence him BEFORE the head leaves her hands. Drop() fires onDropped,
+        // which HeadBarks listens to, so without this he says "Rude." at the exact
+        // moment she is putting him back together. FinaleGrowth also calls
+        // EndGameMode, but that happens after the snap, which is far too late.
+        var barks = head.GetComponent<HeadBarks>();
+        if (barks == null) barks = FindFirstObjectByType<HeadBarks>();
+        if (barks != null) barks.EndGameMode();
+
         // Take the head off the carrier without dropping it into physics.
         head.Drop();
         StartCoroutine(SnapHome(head));

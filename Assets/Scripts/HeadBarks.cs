@@ -23,7 +23,10 @@ public class HeadBarks : MonoBehaviour
     }
 
     [Header("Wiring")]
-    [Tooltip("A TextMeshPro (3D) component. It gets detached from the head at runtime so it never tumbles.")]
+    [Tooltip("Screen-space speech bubble. When set, ALL dialogue goes here and the world label below is ignored.")]
+    public SpeechBubbleUI bubble;
+
+    [Tooltip("Legacy floating world label. Only used when no bubble is assigned.")]
     public TMP_Text label;
 
     [Header("Label placement")]
@@ -88,12 +91,21 @@ public class HeadBarks : MonoBehaviour
     private Coroutine _routine;
     private float _lastInteraction;
     private float _nextIdle;
+    private bool _ended;
     private Transform _cam;
     private string _lastLine;
     private Color _baseColor;
 
     private void Awake()
     {
+        // With a bubble in play the old world label is dead weight, so switch it off
+        // rather than leaving an invisible object following the head around.
+        if (bubble != null && label != null)
+        {
+            label.gameObject.SetActive(false);
+            label = null;
+        }
+
         if (label != null)
         {
             _baseColor = label.color;
@@ -137,7 +149,7 @@ public class HeadBarks : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (label != null)
+        if (bubble == null && label != null)
         {
             // Follow the head's POSITION only. No rotation is inherited, so the text
             // stays level and upright no matter how hard the head is tumbling.
@@ -159,6 +171,7 @@ public class HeadBarks : MonoBehaviour
             }
         }
 
+        if (_ended) return;
         if (idleChatterInterval <= 0f) return;
         if (Time.time < _nextIdle) return;
 
@@ -179,19 +192,40 @@ public class HeadBarks : MonoBehaviour
     public void SayIdle()        => Say(onIdle);
     public void SayNearBody()    => Say(onNearBody);
 
+    /// <summary>
+    /// Called once the head is back on the body. Stops idle chatter and every
+    /// reaction line, because after that moment he is a person again rather than
+    /// an object being carried around. Direct Say(string) calls still work, so
+    /// the closing lines can still be spoken.
+    /// </summary>
+    public void EndGameMode()
+    {
+        _ended = true;
+    }
+
     public void Say(BarkSet set)
     {
+        if (_ended) return;
         if (set == null || set.lines == null || set.lines.Length == 0) return;
         Say(PickLine(set.lines));
     }
 
     public void Say(string line)
     {
-        if (label == null || string.IsNullOrWhiteSpace(line)) return;
+        if (string.IsNullOrWhiteSpace(line)) return;
 
         _lastInteraction = Time.time;
         _nextIdle = Time.time + idleChatterDelay;
 
+        // The screen-space bubble wins whenever it exists. It cannot be blocked by
+        // the photo card or lost behind terrain the way the world label could.
+        if (bubble != null)
+        {
+            bubble.Show(line, displayTime);
+            return;
+        }
+
+        if (label == null) return;
         if (_routine != null) StopCoroutine(_routine);
         _routine = StartCoroutine(ShowLine(line));
     }

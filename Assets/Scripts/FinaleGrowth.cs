@@ -46,8 +46,22 @@ public class FinaleGrowth : MonoBehaviour
     public AudioClip growSound;
 
     [Header("Head")]
-    [Tooltip("Optional line the head says once it is back on.")]
-    [TextArea] public string finalLine = "There you go. Good as new.";
+    [Tooltip("What he says once his head is back on. Each entry is one speech bubble, spoken in order. This is the last thing in the game, so it is worth several lines.")]
+    [TextArea(2, 4)] public string[] finalLines =
+    {
+        "There you go. Good as new.",
+        "Happy birthday, Ava.",
+        "Stay as long as you want.",
+    };
+
+    [Tooltip("Base seconds each closing line stays up, before the per-character bonus.")]
+    public float lineBaseTime = 2.0f;
+
+    [Tooltip("Extra seconds per character, so longer lines linger.")]
+    public float linePerCharTime = 0.05f;
+
+    [Tooltip("Gap between closing lines.")]
+    public float lineGap = 0.5f;
 
     private bool _played;
 
@@ -55,6 +69,13 @@ public class FinaleGrowth : MonoBehaviour
     {
         if (_played) return;
         _played = true;
+
+        // Silence idle chatter and reaction lines the instant his head is back on.
+        // Otherwise he keeps complaining about being left in the grass while the
+        // ending is playing, which undercuts the whole moment.
+        var barks = FindFirstObjectByType<HeadBarks>();
+        if (barks != null) barks.EndGameMode();
+
         StartCoroutine(Run());
     }
 
@@ -85,16 +106,31 @@ public class FinaleGrowth : MonoBehaviour
             grow.enabled = true;
         }
 
-        // --- the head's last word, once the tree is on its way up
+        // --- the bloom starts while he talks, so the world is changing behind him
+        if (flowers != null && flowerCount > 0)
+            StartCoroutine(Bloom(center));
+
+        // --- his last words, once the tree is on its way up
         yield return new WaitForSeconds(1.2f);
 
         var head = FindFirstObjectByType<HeadBarks>();
-        if (head != null && !string.IsNullOrWhiteSpace(finalLine))
-            head.Say(finalLine);
+        if (head != null && finalLines != null)
+        {
+            foreach (string entry in finalLines)
+            {
+                if (string.IsNullOrWhiteSpace(entry)) continue;
 
-        // --- the bloom, spreading outward from the tree
-        if (flowers != null && flowerCount > 0)
-            yield return Bloom(center);
+                // Split each entry into sentences and give every one its own bubble,
+                // the same way memory notes are delivered. Writing a paragraph into
+                // one field should not produce one wall of text.
+                foreach (string line in MemoryNarrator.SplitIntoLines(entry))
+                {
+                    head.Say(line);
+                    yield return new WaitForSeconds(lineBaseTime + line.Length * linePerCharTime);
+                    yield return new WaitForSeconds(lineGap);
+                }
+            }
+        }
     }
 
     private IEnumerator Bloom(Vector3 center)

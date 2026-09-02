@@ -12,8 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bca9de2a01fc03d43b8cb81b5ccbc4d8, type: 3}
   m_Name: Memory_04
   m_EditorClassIdentifier: Assembly-CSharp::MemoryData
-  title: Memory 4
-  note: Replace this with the real one.
-  photo: {fileID: 0}
+  title: Ardana
+  note: Oh I remember, this was the first time we ever went to Ardana and got the
+    legendary Calamari!
+  photo: {fileID: 21300000, guid: bf5ec5715b83998459b9d9c0e79dc351, type: 3}
   voiceClip: {fileID: 0}
   glowColor: {r: 0.6, g: 1, b: 0.712, a: 1}
