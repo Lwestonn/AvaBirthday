@@ -18,6 +18,10 @@ public static class BirthdayBubbleBuilder
     private const string BubbleName = "SpeechBubble";
     private const int SliceBorder = 56;   // matches the corner radius of the art
 
+    // Narrower than the old screen-parked bubble. A bubble floating over his head
+    // should read as a bubble, not as a banner across the top of the world.
+    private const float BubbleWidth = 460f;
+
     [MenuItem("Tools/Birthday/Build Speech Bubble")]
     public static void BuildBubble()
     {
@@ -43,12 +47,15 @@ public static class BirthdayBubbleBuilder
         if (old != null) Undo.DestroyObjectImmediate(old.gameObject);
 
         // ---- root
+        // Anchored to the centre of the canvas with a bottom-centre pivot, because
+        // the bubble is repositioned every frame to sit above the head. Bottom-centre
+        // means it grows upward as the text gets longer, so it never covers him.
         var root = NewUI(BubbleName, canvas.transform);
         var rt = root.GetComponent<RectTransform>();
-        rt.anchorMin = rt.anchorMax = new Vector2(1f, 0.5f);
-        rt.pivot = new Vector2(1f, 0.5f);
-        rt.anchoredPosition = new Vector2(-60f, 40f);
-        rt.sizeDelta = new Vector2(560f, 150f);
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0f);
+        rt.anchoredPosition = Vector2.zero;
+        rt.sizeDelta = new Vector2(BubbleWidth, 150f);
 
         var group = root.AddComponent<CanvasGroup>();
         group.alpha = 0f;
@@ -62,14 +69,14 @@ public static class BirthdayBubbleBuilder
         bg.raycastTarget = false;
         bg.color = Color.white;
 
-        // ---- tail, hanging off the bottom-left
+        // ---- tail, hanging off the bottom edge and pointing down at the head
         if (tailSprite != null)
         {
             var tailGo = NewUI("Tail", root.transform);
             var tailRt = tailGo.GetComponent<RectTransform>();
-            tailRt.anchorMin = tailRt.anchorMax = new Vector2(0f, 0f);
+            tailRt.anchorMin = tailRt.anchorMax = new Vector2(0.5f, 0f);
             tailRt.pivot = new Vector2(0.5f, 1f);
-            tailRt.anchoredPosition = new Vector2(96f, 6f);
+            tailRt.anchoredPosition = new Vector2(0f, 8f);   // 8 up, so it overlaps and hides the seam
             tailRt.sizeDelta = new Vector2(52f, 42f);
 
             var tailImg = tailGo.AddComponent<Image>();
@@ -84,7 +91,7 @@ public static class BirthdayBubbleBuilder
         var tRt = textGo.GetComponent<RectTransform>();
         tRt.anchorMin = tRt.anchorMax = tRt.pivot = new Vector2(0.5f, 0.5f);
         tRt.anchoredPosition = Vector2.zero;
-        tRt.sizeDelta = new Vector2(560f - 92f, 70f);
+        tRt.sizeDelta = new Vector2(BubbleWidth - 92f, 70f);
 
         var text = textGo.AddComponent<TextMeshProUGUI>();
         text.text = "";
@@ -108,6 +115,7 @@ public static class BirthdayBubbleBuilder
         bubble.tail = tailSprite != null ? root.transform.Find("Tail") as RectTransform : null;
         bubble.blipSource = audio;
         bubble.blips = LoadBlips();
+        bubble.width = BubbleWidth;
 
         // Sit below the menus so pausing covers it, above the HUD.
         root.transform.SetSiblingIndex(Mathf.Min(2, canvas.transform.childCount - 1));
@@ -119,15 +127,28 @@ public static class BirthdayBubbleBuilder
             Undo.RecordObject(barks, "Wire bubble");
             barks.bubble = bubble;
             EditorUtility.SetDirty(barks);
+
+            // This is what makes the bubble float over him instead of sitting in a
+            // screen corner. HeadBarks lives on the head, so its transform is the head.
+            bubble.followTarget = barks.transform;
+
+            // Lift it clear of the mesh rather than guessing a fixed height.
+            var rend = barks.GetComponentInChildren<Renderer>();
+            if (rend != null)
+                bubble.worldHeight = rend.bounds.size.y * 0.5f + 0.55f;
         }
         else
         {
-            Debug.LogWarning("[Birthday] No HeadBarks found. Assign the bubble to it manually.");
+            Debug.LogWarning("[Birthday] No HeadBarks found. Assign the bubble to it manually, " +
+                             "and drag the head into the bubble's Follow Target slot.");
         }
 
         Selection.activeGameObject = root;
-        Debug.Log($"<b>[Birthday]</b> Speech bubble built on the right, {bubble.blips.Length} blip(s) loaded. " +
-                  $"The old floating world label is now bypassed automatically.");
+        Debug.Log($"<b>[Birthday]</b> Speech bubble built, {bubble.blips.Length} blip(s) loaded. " +
+                  $"It now floats above the head (Follow Target: " +
+                  $"{(bubble.followTarget != null ? bubble.followTarget.name : "NOT SET")}, " +
+                  $"height {bubble.worldHeight:0.00}).\n" +
+                  $"Clear Follow Target on the SpeechBubble object to go back to a fixed screen position.");
     }
 
     /// <summary>

@@ -4,11 +4,18 @@ using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// Animal Crossing style speech bubble, pinned to the right side of the screen.
+/// Animal Crossing style speech bubble that floats above the head.
 ///
-/// Screen-space rather than floating in the world, so it can never be blocked by
-/// the memory photo card, never gets lost behind terrain, and stays readable
-/// however far the head has been thrown.
+/// It is still a screen-space UI element, it is just repositioned every frame to
+/// sit over the head's position in the world. That gets the best of both: the
+/// text stays crisp and perfectly readable at any distance, the 9-slice art never
+/// distorts, and the bubble can never be swallowed by terrain, but it is anchored
+/// to the character so it reads as him talking rather than as a subtitle.
+///
+/// If the head goes near a screen edge the bubble is clamped so it stays fully
+/// visible, and the tail slides sideways to keep pointing at him.
+///
+/// Leave Follow Target empty to go back to a bubble parked in one screen corner.
 ///
 /// Built and wired by Tools > Birthday > Build Speech Bubble.
 /// </summary>
@@ -58,9 +65,29 @@ public class SpeechBubbleUI : MonoBehaviour
     public float popScale = 1.06f;
     public float popTime = 0.14f;
 
+    [Header("Follow the head")]
+    [Tooltip("The head. The bubble floats above this every frame. Leave empty to park the bubble in a fixed screen position instead.")]
+    public Transform followTarget;
+
+    [Tooltip("How far above the head the bubble sits, in world units.")]
+    public float worldHeight = 1.1f;
+
+    [Tooltip("Keeps the bubble this many pixels away from the screen edges.")]
+    public float screenMargin = 28f;
+
+    [Tooltip("Softens the follow so a hard throw does not make the bubble jitter. 0 = rigid.")]
+    public float followSmoothing = 18f;
+
+    [Tooltip("Slide the tail sideways so it keeps pointing at the head when the bubble is clamped to a screen edge.")]
+    public bool tailTracksTarget = true;
+
     private Coroutine _routine;
     private Vector3 _baseScale;
     private bool _visible;
+    private bool _placed;
+    private Camera _cam;
+    private Canvas _canvas;
+    private RectTransform _canvasRect;
 
     public bool IsTyping { get; private set; }
 
@@ -68,6 +95,9 @@ public class SpeechBubbleUI : MonoBehaviour
     {
         if (panel == null) panel = transform as RectTransform;
         if (group == null) group = GetComponent<CanvasGroup>();
+
+        _canvas = GetComponentInParent<Canvas>();
+        if (_canvas != null) _canvasRect = _canvas.transform as RectTransform;
 
         _baseScale = panel.localScale;
 
@@ -79,6 +109,66 @@ public class SpeechBubbleUI : MonoBehaviour
         }
 
         if (label != null) label.text = "";
+    }
+
+    private void LateUpdate()
+    {
+        if (followTarget == null) return;
+        if (_canvasRect == null) return;
+
+        if (_cam == null) _cam = Camera.main;
+        if (_cam == null) return;
+
+        Vector3 world = followTarget.position + Vector3.up * worldHeight;
+        Vector3 sp = _cam.WorldToScreenPoint(world);
+
+        // Behind the camera, WorldToScreenPoint returns a mirrored point with a
+        // negative z. Flipping it pushes the bubble to the correct screen edge
+        // instead of having it appear on the wrong side of the screen.
+        bool behind = sp.z < 0f;
+        if (behind)
+        {
+            sp.x = Screen.width - sp.x;
+            sp.y = Screen.height - sp.y;
+        }
+
+        Camera uiCam = _canvas.renderMode == RenderMode.ScreenSpaceOverlay
+            ? null
+            : _canvas.worldCamera;
+
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                _canvasRect, sp, uiCam, out Vector2 local))
+            return;
+
+        // Pivot is bottom-centre, so the bubble grows upward from the point just
+        // above his head and never covers him.
+        Vector2 half = _canvasRect.rect.size * 0.5f;
+        Vector2 size = panel.sizeDelta;
+
+        float minX = -half.x + screenMargin + size.x * 0.5f;
+        float maxX = half.x - screenMargin - size.x * 0.5f;
+        float minY = -half.y + screenMargin;
+        float maxY = half.y - screenMargin - size.y;
+
+        Vector2 clamped = new(
+            maxX > minX ? Mathf.Clamp(local.x, minX, maxX) : 0f,
+            maxY > minY ? Mathf.Clamp(local.y, minY, maxY) : minY);
+
+        // Snap the first frame of a new line, smooth after that. Without the snap
+        // the bubble visibly flies across the screen every time he speaks.
+        bool smooth = _placed && followSmoothing > 0f && !behind;
+        panel.anchoredPosition = smooth
+            ? Vector2.Lerp(panel.anchoredPosition, clamped, followSmoothing * Time.deltaTime)
+            : clamped;
+
+        _placed = true;
+
+        if (tailTracksTarget && tail != null)
+        {
+            float limit = Mathf.Max(0f, size.x * 0.5f - 44f);
+            float dx = Mathf.Clamp(local.x - panel.anchoredPosition.x, -limit, limit);
+            tail.anchoredPosition = new Vector2(dx, tail.anchoredPosition.y);
+        }
     }
 
     /// <summary>Say a line. Pass a hold time, or leave it negative to use the default.</summary>
@@ -223,6 +313,7 @@ public class SpeechBubbleUI : MonoBehaviour
         if (group != null) group.alpha = 0f;
         if (label != null) label.text = "";
         _visible = false;
+        _placed = false;      // next line snaps into place instead of sliding across
         IsTyping = false;
         _routine = null;
     }
