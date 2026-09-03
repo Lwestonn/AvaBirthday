@@ -168,7 +168,11 @@ public static class BirthdayAudioBuilder
         if (importer == null) return 0;
 
         var s = importer.defaultSampleSettings;
-        s.loadType = streaming ? AudioClipLoadType.Streaming : AudioClipLoadType.DecompressOnLoad;
+
+        // WebGL does not support Streaming. Music uses CompressedInMemory instead,
+        // which decodes as it plays and keeps memory low; short sounds decompress
+        // fully so they fire with no delay.
+        s.loadType = streaming ? AudioClipLoadType.CompressedInMemory : AudioClipLoadType.DecompressOnLoad;
         s.compressionFormat = AudioCompressionFormat.Vorbis;
         s.quality = streaming ? 0.55f : 0.8f;
 
