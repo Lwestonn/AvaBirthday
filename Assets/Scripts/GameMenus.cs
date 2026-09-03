@@ -21,6 +21,11 @@ public class GameMenus : MonoBehaviour
     public GameObject startPanel;
     public GameObject pausePanel;
 
+    [Tooltip("The StartStage object: its own camera, its own light, and the spinning copy of Ava. " +
+             "Shown with the start screen and switched off the moment she presses Play, so it costs " +
+             "nothing during the game. Built by Tools > Birthday > Build Start Screen.")]
+    public GameObject startStage;
+
     [Header("Start screen buttons")]
     public Button playButton;
     public Button quitButton;
@@ -69,15 +74,22 @@ public class GameMenus : MonoBehaviour
     {
         if (showStartScreenOnLoad)
         {
-            if (startPanel != null) startPanel.SetActive(true);
+            ShowStartScreen(true);
             SetPlayerActive(false);
         }
         else
         {
             _started = true;
-            if (startPanel != null) startPanel.SetActive(false);
+            ShowStartScreen(false);
             SetPlayerActive(true);
         }
+    }
+
+    /// <summary>Panel and stage always move together, so they can never disagree.</summary>
+    private void ShowStartScreen(bool on)
+    {
+        if (startPanel != null) startPanel.SetActive(on);
+        if (startStage != null) startStage.SetActive(on);
     }
 
     private void Update()
@@ -97,7 +109,7 @@ public class GameMenus : MonoBehaviour
     public void StartGame()
     {
         _started = true;
-        if (startPanel != null) startPanel.SetActive(false);
+        ShowStartScreen(false);
         SetPlayerActive(true);
     }
 
@@ -145,7 +157,7 @@ public class GameMenus : MonoBehaviour
         // her back on the start screen rather than pretending to close.
         _started = false;
         if (pausePanel != null) pausePanel.SetActive(false);
-        if (startPanel != null) startPanel.SetActive(true);
+        ShowStartScreen(true);
         SetPlayerActive(false);
 #else
         Application.Quit();

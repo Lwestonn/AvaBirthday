@@ -47,6 +47,37 @@ public class HeadBarks : MonoBehaviour
     [Tooltip("Set to 0 to turn idle chatter off.")]
     public float idleChatterInterval = 22f;
 
+    [Header("First pickup")]
+    [Tooltip("Keep him completely silent until she picks him up for the first time. " +
+             "Without this he starts making idle comments while she is still working out the controls.")]
+    public bool silentUntilFirstPickup = true;
+
+    [Tooltip("Spoken once, the very first time she picks him up. Each entry is split into sentences " +
+             "and each sentence gets its own bubble, so you can write naturally. This is the first " +
+             "thing she hears in the game, so it is worth taking your time over.")]
+    [TextArea(2, 4)] public string[] welcomeLines =
+    {
+        "Hi Ava. Happy birthday.",
+        "So. Slight situation. My head appears to have come off.",
+        "That is my body up on the hill. I would quite like it back at some point.",
+        "There are ten glowing things scattered around this island. Every one of them is a memory of us.",
+        "Carry me around and find them all, and I will tell you about each one.",
+        "Hold left click to throw me, by the way. I probably deserve it.",
+        "Right. Off we go.",
+    };
+
+    [Tooltip("Beat before he starts talking, so the bubble does not appear the same instant she presses E.")]
+    public float welcomeDelay = 0.6f;
+
+    [Tooltip("Base seconds each welcome line stays up, before the per-character bonus.")]
+    public float welcomeBaseTime = 2.0f;
+
+    [Tooltip("Extra seconds per character, so longer lines linger.")]
+    public float welcomePerCharTime = 0.05f;
+
+    [Tooltip("Gap between welcome lines.")]
+    public float welcomeGap = 0.45f;
+
     [Header("Lines")]
     public BarkSet onPickedUp = new() { label = "Picked up", lines = new[] {
         "There she is.",
@@ -92,6 +123,8 @@ public class HeadBarks : MonoBehaviour
     private float _lastInteraction;
     private float _nextIdle;
     private bool _ended;
+    private bool _welcomed;
+    private bool _scripted;
     private Transform _cam;
     private string _lastLine;
     private Color _baseColor;
@@ -172,6 +205,12 @@ public class HeadBarks : MonoBehaviour
         }
 
         if (_ended) return;
+        if (_scripted) return;
+
+        // Nothing at all until she has picked him up once. The welcome should be
+        // the first thing she ever hears from him, not the fourth.
+        if (silentUntilFirstPickup && !_welcomed) return;
+
         if (idleChatterInterval <= 0f) return;
         if (Time.time < _nextIdle) return;
 
@@ -184,7 +223,50 @@ public class HeadBarks : MonoBehaviour
 
     // ---- public hooks, safe to wire from the Inspector -------------------
 
-    public void SayPickedUp()    => Say(onPickedUp);
+    /// <summary>
+    /// The first pickup is special: instead of a one-liner he gives the welcome,
+    /// and only after that does the rest of his chatter switch on.
+    /// </summary>
+    public void SayPickedUp()
+    {
+        if (!_welcomed)
+        {
+            _welcomed = true;
+
+            if (welcomeLines != null && welcomeLines.Length > 0)
+            {
+                StartCoroutine(SayWelcome());
+                return;
+            }
+        }
+
+        Say(onPickedUp);
+    }
+
+    private IEnumerator SayWelcome()
+    {
+        _scripted = true;
+
+        if (welcomeDelay > 0f) yield return new WaitForSeconds(welcomeDelay);
+
+        foreach (string entry in welcomeLines)
+        {
+            if (string.IsNullOrWhiteSpace(entry)) continue;
+
+            // One bubble per sentence, the same as memories and the ending, so a
+            // paragraph typed into one field does not become a wall of text.
+            foreach (string line in MemoryNarrator.SplitIntoLines(entry))
+            {
+                Say(line);
+                yield return new WaitForSeconds(welcomeBaseTime + line.Length * welcomePerCharTime);
+                yield return new WaitForSeconds(welcomeGap);
+            }
+        }
+
+        _scripted = false;
+        _nextIdle = Time.time + idleChatterDelay;
+    }
+
     public void SayThrown()      => Say(onThrown);
     public void SayLanded()      => Say(onLanded);
     public void SayDropped()     => Say(onDropped);
@@ -206,6 +288,11 @@ public class HeadBarks : MonoBehaviour
     public void Say(BarkSet set)
     {
         if (_ended) return;
+
+        // Reaction lines are suppressed while a scripted speech is running, so
+        // throwing him mid-welcome cannot cut his own introduction off.
+        if (_scripted) return;
+
         if (set == null || set.lines == null || set.lines.Length == 0) return;
         Say(PickLine(set.lines));
     }

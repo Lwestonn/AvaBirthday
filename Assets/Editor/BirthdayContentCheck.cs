@@ -68,6 +68,13 @@ public static class BirthdayContentCheck
         }
         else
         {
+            int w = barks.welcomeLines?.Length ?? 0;
+            sb.AppendLine($"    <b>welcome ({w} entr{(w == 1 ? "y" : "ies")}, spoken on the first pickup)</b>");
+            if (barks.welcomeLines != null)
+                foreach (var l in barks.welcomeLines)
+                    sb.AppendLine($"      \"{Trim(l)}\"");
+            sb.AppendLine($"    silent until first pickup: {barks.silentUntilFirstPickup}\n");
+
             ReportBark(sb, "picked up", barks.onPickedUp);
             ReportBark(sb, "thrown", barks.onThrown);
             ReportBark(sb, "landed", barks.onLanded);
