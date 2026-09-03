@@ -90,7 +90,7 @@ public static class BirthdayHeadRepair
         label.color = Color.white;
         label.outlineWidth = 0.25f;
         label.outlineColor = new Color32(20, 10, 20, 220);
-        label.enableWordWrapping = true;
+        // Deprecated in current TMP, and wrapping is the default anyway.
         label.rectTransform.sizeDelta = new Vector2(6f, 1.5f);
         label.text = "";
         label.gameObject.SetActive(true);

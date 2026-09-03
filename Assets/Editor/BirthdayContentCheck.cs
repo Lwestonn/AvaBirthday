@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEditor;
@@ -16,6 +17,53 @@ public static class BirthdayContentCheck
         "Memory 1", "Memory 2", "Memory 3", "Memory 4", "Memory 5",
         "Memory 6", "Memory 7", "Memory 8", "Memory 9", "Memory 10",
     };
+
+    /// <summary>
+    /// Selects any MemoryData asset that no orb in the scene actually uses, so
+    /// leftovers from testing stop inflating the total and stop you hunting for
+    /// a file you cannot remember creating.
+    /// </summary>
+    [MenuItem("Tools/Birthday/Find Unused Memories")]
+    public static void FindUnusedMemories()
+    {
+        var used = new HashSet<MemoryData>(
+            Object.FindObjectsByType<MemoryPickup>(FindObjectsSortMode.None)
+                  .Select(p => p.memory)
+                  .Where(m => m != null));
+
+        var all = AssetDatabase.FindAssets("t:MemoryData")
+            .Select(g => AssetDatabase.GUIDToAssetPath(g))
+            .Select(AssetDatabase.LoadAssetAtPath<MemoryData>)
+            .Where(m => m != null)
+            .OrderBy(m => m.name)
+            .ToList();
+
+        var unused = all.Where(m => !used.Contains(m)).ToList();
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("<b>[Birthday] Unused memories</b>\n");
+        sb.AppendLine($"  {all.Count} MemoryData asset(s) in the project, {used.Count} used by orbs in this scene.\n");
+
+        if (unused.Count == 0)
+        {
+            sb.AppendLine("  Every memory asset is assigned to an orb. Nothing to clean up.");
+            Debug.Log(sb.ToString());
+            return;
+        }
+
+        sb.AppendLine($"  {unused.Count} not used by any orb:");
+        foreach (var m in unused)
+            sb.AppendLine($"    {m.name}\n      {AssetDatabase.GetAssetPath(m)}");
+
+        sb.AppendLine("\n  They are now selected in the Project window. If you recognise them as leftovers, " +
+                      "press Delete. Unused assets do not affect the game, but they do make Check Content lie " +
+                      "to you about how many memories there are.");
+
+        Debug.Log(sb.ToString());
+
+        Selection.objects = unused.Cast<Object>().ToArray();
+        EditorGUIUtility.PingObject(unused[0]);
+    }
 
     [MenuItem("Tools/Birthday/Check Content")]
     public static void CheckContent()

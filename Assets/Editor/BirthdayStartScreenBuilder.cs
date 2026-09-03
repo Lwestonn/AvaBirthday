@@ -28,6 +28,7 @@ public static class BirthdayStartScreenBuilder
     private const string LayerName = "MenuStage";
     private const string StageName = "StartStage";
     private const string PanelName = "StartPanel";
+    private const string PausePanelName = "PausePanel";
 
     private static readonly Vector3 StageOrigin = new(0f, 3000f, 0f);
 
@@ -275,12 +276,15 @@ public static class BirthdayStartScreenBuilder
         return panel;
     }
 
-    private static Button MakeButton(Transform parent, Sprite sprite, string name, string label, Vector2 pos)
+    private static Button MakeButton(Transform parent, Sprite sprite, string name, string label, Vector2 pos,
+                                     Vector2? anchor = null)
     {
+        Vector2 a = anchor ?? new Vector2(1f, 0.5f);
+
         var go = NewUI(name, parent);
         var rt = go.GetComponent<RectTransform>();
-        rt.anchorMin = rt.anchorMax = new Vector2(1f, 0.5f);
-        rt.pivot = new Vector2(1f, 0.5f);
+        rt.anchorMin = rt.anchorMax = a;
+        rt.pivot = a;
         rt.anchoredPosition = pos;
         rt.sizeDelta = new Vector2(ButtonW, ButtonH);
 
@@ -317,6 +321,121 @@ public static class BirthdayStartScreenBuilder
         text.raycastTarget = false;
 
         return btn;
+    }
+
+    // ===================================================================
+    // Pause menu
+    // ===================================================================
+
+    /// <summary>
+    /// Same buttons as the start screen, but over a dark scrim rather than a
+    /// black void, because the game is still there behind it and it should read
+    /// as an interruption rather than a different screen.
+    ///
+    /// Tools > Birthday > Build Pause Menu
+    /// </summary>
+    [MenuItem("Tools/Birthday/Build Pause Menu")]
+    public static void BuildPauseMenu()
+    {
+        if (TMP_Settings.instance == null)
+        {
+            EditorUtility.DisplayDialog("TextMeshPro not set up",
+                "Window > TextMeshPro > Import TMP Essential Resources, then run this again.", "OK");
+            return;
+        }
+
+        var canvas = Object.FindFirstObjectByType<Canvas>();
+        if (canvas == null)
+        {
+            EditorUtility.DisplayDialog("No Canvas", "Run Tools > Birthday > Build UI first.", "OK");
+            return;
+        }
+
+        var menus = Object.FindFirstObjectByType<GameMenus>(FindObjectsInactive.Include);
+        if (menus == null)
+        {
+            EditorUtility.DisplayDialog("No GameMenus",
+                "Could not find the GameMenus component.", "OK");
+            return;
+        }
+
+        var old = canvas.transform.Find(PausePanelName);
+        if (old != null) Undo.DestroyObjectImmediate(old.gameObject);
+
+        var sprite = ImportButtonSprite();
+
+        var panel = NewUI(PausePanelName, canvas.transform);
+        var rt = panel.GetComponent<RectTransform>();
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = rt.offsetMax = Vector2.zero;
+
+        // ---- scrim
+        // Raycast target stays ON so clicks land on the scrim instead of falling
+        // through to whatever is behind it.
+        var scrim = panel.AddComponent<Image>();
+        scrim.color = new Color(0.04f, 0.03f, 0.06f, 0.78f);
+        scrim.raycastTarget = true;
+
+        var centre = new Vector2(0.5f, 0.5f);
+
+        // ---- title
+        var titleGo = NewUI("Title", panel.transform);
+        var tRt = titleGo.GetComponent<RectTransform>();
+        tRt.anchorMin = tRt.anchorMax = tRt.pivot = centre;
+        tRt.anchoredPosition = new Vector2(0f, 170f);
+        tRt.sizeDelta = new Vector2(700f, 110f);
+
+        var title = titleGo.AddComponent<TextMeshProUGUI>();
+        title.text = "Paused";
+        title.fontSize = 68;
+        title.color = Color.white;
+        title.alignment = TextAlignmentOptions.Center;
+        title.raycastTarget = false;
+
+        // ---- buttons
+        float half = (ButtonH + ButtonGap) * 0.5f;
+        var resume = MakeButton(panel.transform, sprite, "ResumeButton", "Resume",
+                                new Vector2(0f, half), centre);
+        var quit = MakeButton(panel.transform, sprite, "QuitButton", "Quit",
+                              new Vector2(0f, -half), centre);
+
+        // ---- hint
+        var hintGo = NewUI("Hint", panel.transform);
+        var hRt = hintGo.GetComponent<RectTransform>();
+        hRt.anchorMin = hRt.anchorMax = hRt.pivot = centre;
+        hRt.anchoredPosition = new Vector2(0f, -160f);
+        hRt.sizeDelta = new Vector2(700f, 50f);
+
+        var hint = hintGo.AddComponent<TextMeshProUGUI>();
+        hint.text = "Esc to resume";
+        hint.fontSize = 26;
+        hint.color = new Color(1f, 1f, 1f, 0.55f);
+        hint.alignment = TextAlignmentOptions.Center;
+        hint.raycastTarget = false;
+
+        panel.transform.SetAsLastSibling();
+
+        Undo.RecordObject(menus, "Wire pause menu");
+        menus.pausePanel = panel;
+        menus.resumeButton = resume;
+        menus.quitFromPauseButton = quit;
+        EditorUtility.SetDirty(menus);
+
+        // The start screen must still win if both somehow end up shown.
+        var start = canvas.transform.Find(PanelName);
+        if (start != null) start.SetAsLastSibling();
+
+        panel.SetActive(false);
+
+        EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+        Selection.activeGameObject = panel;
+
+        Debug.Log(
+            "<b>[Birthday]</b> Pause menu rebuilt to match the start screen.\n" +
+            "  Dark scrim over the live game, 'Paused', Resume and Quit, same button art.\n" +
+            "  Press Esc in Play mode to check it. The scrim swallows clicks, so she cannot " +
+            "accidentally throw your head while the menu is up.");
     }
 
     // ===================================================================

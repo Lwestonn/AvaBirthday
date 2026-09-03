@@ -212,7 +212,22 @@ public class SpeechBubbleUI : MonoBehaviour
         int total = label.textInfo.characterCount;
 
         // --- appear
-        if (!_visible) yield return Pop();
+        //
+        // The bug this guards against: Show() stops whatever coroutine is running,
+        // and if that was a fade-out caught halfway, the group is left sitting at
+        // partial alpha. Pop() is the only thing that puts alpha back to 1, and it
+        // used to be skipped whenever _visible was still true. Result: the typing
+        // and the blips carry on while the bubble is invisible.
+        if (!_visible)
+        {
+            yield return Pop();
+        }
+        else
+        {
+            if (group != null) group.alpha = 1f;
+            panel.localScale = _baseScale;
+        }
+
         _visible = true;
 
         // --- type

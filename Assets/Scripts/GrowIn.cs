@@ -19,6 +19,11 @@ public class GrowIn : MonoBehaviour
     [Tooltip("Random scale multiplier range, for variety.")]
     public Vector2 scaleJitter = new(0.85f, 1.2f);
 
+    [Tooltip("Makes height run ahead of width, so the thing shoots up and then fills out. " +
+             "0 is a plain uniform scale, which reads as an object being resized. Around 0.6 " +
+             "reads as something growing. Worth turning up on the finale tree.")]
+    [Range(0f, 1f)] public float verticalLead;
+
     private Vector3 _target;
 
     private void OnEnable()
@@ -48,7 +53,17 @@ public class GrowIn : MonoBehaviour
             float eased = 1f - Mathf.Pow(1f - k, 3f);
             float bounce = 1f + overshoot * Mathf.Sin(k * Mathf.PI) * (1f - k);
 
-            transform.localScale = _target * eased * bounce;
+            // Height runs ahead of width. A uniform scale reads as an object being
+            // resized; something that gets tall first and then thickens reads as
+            // growing. Pow with an exponent below 1 always sits above the plain
+            // curve, so Y leads and both still land on 1 together.
+            float tall = Mathf.Lerp(eased, Mathf.Pow(eased, 0.55f), verticalLead);
+
+            transform.localScale = new Vector3(
+                _target.x * eased * bounce,
+                _target.y * tall * bounce,
+                _target.z * eased * bounce);
+
             yield return null;
         }
 

@@ -70,7 +70,32 @@ public class BodyReattach : MonoBehaviour
     /// <summary>Hook this to MemoryManager.onProgressChanged (Dynamic int, int).</summary>
     public void SetProgress(int collected, int total)
     {
-        RefreshMarks(collected);
+        int marks = progressMarks?.Length ?? 0;
+
+        // The number of marks does not have to match the number of memories. With
+        // 8 marks and 10 memories, lighting one per memory would stall the meter
+        // for the last two, which reads as the game being broken right at the
+        // moment she is closest to finishing. Scale instead.
+        int lit = (total > 0 && marks > 0)
+            ? Mathf.RoundToInt(marks * (collected / (float)total))
+            : collected;
+
+        // Never show a full chest before she is actually done.
+        if (collected < total && lit >= marks) lit = marks - 1;
+
+        RefreshMarks(lit);
+    }
+
+    /// <summary>
+    /// Testing shortcut. Right-click the BodyReattach header in the Inspector
+    /// while the game is running and pick this. No searching, no menu items, it
+    /// acts on the exact component you right-clicked.
+    /// </summary>
+    [ContextMenu("Unlock Now (testing)")]
+    private void UnlockFromInspector()
+    {
+        Unlock();
+        Debug.Log($"[BodyReattach] '{name}' unlocked by hand. Carry the head over and press E.", this);
     }
 
     /// <summary>Hook this to MemoryManager.onAllCollected.</summary>

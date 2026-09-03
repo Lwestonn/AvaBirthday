@@ -98,7 +98,8 @@ public static class BirthdayBubbleBuilder
         text.fontSize = 34;
         text.color = new Color(0.08f, 0.07f, 0.09f);   // near-black, softer than pure
         text.alignment = TextAlignmentOptions.Left;
-        text.enableWordWrapping = true;
+        // Word wrapping is on by default in current TMP, and the old property is
+        // deprecated, so setting it just produces a warning.
         text.raycastTarget = false;
 
         // ---- audio
